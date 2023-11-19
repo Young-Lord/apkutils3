@@ -1,4 +1,6 @@
 from struct import pack, unpack
+from typing import Dict, List, Tuple
+import warnings
 
 # NS_ANDROID_URI = 'http://schemas.android.com/apk/res/android'
 
@@ -11,55 +13,53 @@ CHUNK_STRINGPOOL_TYPE = 0x001C0001
 CHUNK_NULL_TYPE = 0x00000000
 
 
-class StringPoolChunk(object):
-    '''
+class StringPoolChunk:
+    """
     解析String Pool Chunk
-    '''
+    """
 
-    def __init__(self, buff):
-        self.size_of_buff = buff.size()
+    def __init__(self, buff: "BuffHandle"):
+        self.size_of_buff: int = buff.size()
         self.start = buff.get_idx()
-        self._cache = {}
+        self._cache: Dict[int, str] = {}
         self.header_size, self.header = self.skipNullPadding(buff)
 
         # 块大小
-        self.chunkSize = unpack('<i', buff.read(4))[0]
+        self.chunkSize = unpack("<i", buff.read(4))[0]
         # 字符串数
-        self.stringCount = unpack('<i', buff.read(4))[0]
+        self.stringCount = unpack("<i", buff.read(4))[0]
         # style 数
-        self.styleCount = unpack('<i', buff.read(4))[0]
+        self.styleCount = unpack("<i", buff.read(4))[0]
 
         # 字符串格式标记
-        self.flags = unpack('<i', buff.read(4))[0]
+        self.flags = unpack("<i", buff.read(4))[0]
         # 字符串的格式有两种，一种是16bit，另外一种是UTF8
         self.m_isUTF8 = (self.flags & UTF8_FLAG) != 0
 
         # 字符串起始位置
-        self.stringsStart = unpack('<i', buff.read(4))[0]
+        self.stringsStart = unpack("<i", buff.read(4))[0]
 
         # 注意：
         # 1. 如果解析的是清单，那么这个值肯定是为空的。
         # 2. 该值不可能大于小于文件的大小（开发者通常用来对抗解析工具）
-        self.stylesStart = unpack('<i', buff.read(4))[0]
+        self.stylesStart = unpack("<i", buff.read(4))[0]
         if self.stylesStart > buff.size():
             self.stylesStart = 0
 
         # 字符串偏移数组
-        self.m_stringIndices = []
+        self.m_stringIndices: List[int] = []
         # style 偏移数组
-        self.m_styleIndices = []
-        # 字符串池
-        self.m_charbuff = ""
+        self.m_styleIndices: List[int] = []
         # style pan 池
-        self.m_styles = []
+        self.m_styles: List[int] = []
 
         for _ in range(0, self.stringCount):
             tmp = buff.read(4)
-            self.m_stringIndices.append(unpack('<i', tmp)[0])
+            self.m_stringIndices.append(unpack("<i", tmp)[0])
 
         for _ in range(0, self.styleCount):
             tmp = buff.read(4)
-            self.m_styleIndices.append(unpack('<i', tmp)[0])
+            self.m_styleIndices.append(unpack("<i", tmp)[0])
 
         # 4字节对齐
         size = self.chunkSize - self.stringsStart
@@ -74,18 +74,19 @@ class StringPoolChunk(object):
 
             for _ in range(0, int(size / 4) - 1):
                 tmp = buff.read(4)
-                self.m_styles.append(unpack('<i', tmp)[0])
+                self.m_styles.append(unpack("<i", tmp)[0])
 
-    def skipNullPadding(self, buff):
-        '''
+    def skipNullPadding(self, buff: "BuffHandle") -> Tuple[int, int]:
+        """
         不断地寻找 CHUNK_STRINGPOOL_TYPE，目前暂时没有遇到这种样本。
-        '''
-        def readNext(buff, first_run=True):
-            datas = unpack('<i', buff.read(4))
-            header = datas[0]
+        """
+
+        def readNext(buff: "BuffHandle", first_run: bool=True) -> int:
+            datas = unpack("<i", buff.read(4))
+            header: int = datas[0]
 
             if header == CHUNK_NULL_TYPE and first_run:
-                print("Skipping null padding in StringPoolChunk header")
+                # warnings.warn("Skipping null padding in StringPoolChunk header")
                 header = readNext(buff, first_run=False)
             elif header != CHUNK_STRINGPOOL_TYPE:
                 print("Invalid StringPoolChunk header")
@@ -95,15 +96,14 @@ class StringPoolChunk(object):
         header = readNext(buff)
         return header >> 8, header & 0xFF
 
-    def getString(self, idx):
+    def getString(self, idx: int) -> str:
         if idx in self._cache:
             return self._cache[idx]
 
-        if idx < 0 or not self.m_stringIndices or idx >= len(
-                self.m_stringIndices):
+        if idx < 0 or not self.m_stringIndices or idx >= len(self.m_stringIndices):
             return ""
 
-        offset = self.m_stringIndices[idx]
+        offset: int = self.m_stringIndices[idx]
 
         if self.m_isUTF8:
             self._cache[idx] = self.decode8(offset)
@@ -112,45 +112,46 @@ class StringPoolChunk(object):
 
         return self._cache[idx]
 
-    def getStyle(self, idx):
+    def getStyle(self, idx) -> int:
         return self.m_styles[idx]
 
-    def decode8(self, offset):
+    def decode8(self, offset: int) -> str:
         str_len, skip = self.decodeLength(offset, 1)
         offset += skip
 
         encoded_bytes, skip = self.decodeLength(offset, 1)
         offset += skip
 
-        data = self.m_charbuff[offset: offset + encoded_bytes]
+        data = self.m_charbuff[offset : offset + encoded_bytes]
 
-        return self.decode_bytes(data, 'utf-8', str_len)
+        return self.decode_bytes(data, "utf-8", str_len)
 
-    def decode16(self, offset):
+    def decode16(self, offset: int) -> str:
         str_len, skip = self.decodeLength(offset, 2)
         offset += skip
 
         encoded_bytes = str_len * 2
 
-        data = self.m_charbuff[offset: offset + encoded_bytes]
+        data = self.m_charbuff[offset : offset + encoded_bytes]
 
-        return self.decode_bytes(data, 'utf-16', str_len)
+        return self.decode_bytes(data, "utf-16", str_len)
 
-    def decode_bytes(self, data, encoding, str_len):
-        string = data.decode(encoding, 'replace')
+    def decode_bytes(self, data: bytes, encoding: str, str_len: int) -> str:
+        string = data.decode(encoding, "replace")
         if len(string) != str_len:
             raise Exception("invalid decoded string length")
         return string
 
-    def decodeLength(self, offset, sizeof_char):
+    def decodeLength(self, offset: int, sizeof_char: int):
         length = self.m_charbuff[offset]
 
         sizeof_2chars = sizeof_char << 1
-        fmt_chr = 'B' if sizeof_char == 1 else 'H'
+        fmt_chr = "B" if sizeof_char == 1 else "H"
         fmt = "<2" + fmt_chr
 
         length1, length2 = unpack(
-            fmt, self.m_charbuff[offset:(offset + sizeof_2chars)])
+            fmt, self.m_charbuff[offset : (offset + sizeof_2chars)]  # TODO wtf???
+        )
 
         highbit = 0x80 << (8 * (sizeof_char - 1))
 
@@ -178,12 +179,13 @@ class StringPoolChunk(object):
 CHUNK_RESOURCEIDS_TYPE = 0x00080180
 
 
-class ResourceIDChunk(object):
+class ResourceIDChunk:
     pass
 
 
-class SV(object):
-
+"""
+stale code
+class SV:
     def __init__(self, size, buff):
         self.__size = size
         self.__value = unpack(self.__size, buff)[0]
@@ -205,43 +207,40 @@ class SV(object):
 
     def set_value(self, attr):
         self.__value = attr
+"""
 
 
-class BuffHandle(object):
+class BuffHandle:
+    def __init__(self, buff: bytes):
+        self.__buff: bytes = buff
+        self.__idx: int = 0
 
-    def __init__(self, buff):
-        self.__buff = buff
-        self.__idx = 0
-
-    def size(self):
+    def size(self) -> int:
         return len(self.__buff)
 
-    def set_idx(self, idx):
+    def set_idx(self, idx: int) -> None:
         self.__idx = idx
 
-    def get_idx(self):
+    def get_idx(self) -> int:
         return self.__idx
 
-    def readNullString(self, size):
+    def readNullString(self, size: int) -> bytes:
         data = self.read(size)
         return data
 
-    def read_b(self, size):
-        return self.__buff[self.__idx:self.__idx + size]
+    def read_b(self, size: int) -> bytes:
+        return self.__buff[self.__idx : self.__idx + size]
 
-    def read_at(self, offset, size):
-        return self.__buff[offset:offset + size]
+    def read_at(self, offset: int, size: int) -> bytes:
+        return self.__buff[offset : offset + size]
 
-    def read(self, size):
-        if isinstance(size, SV):
-            size = size.value
-
-        buff = self.__buff[self.__idx:self.__idx + size]
+    def read(self, size: int) -> bytes:
+        buff = self.__buff[self.__idx : self.__idx + size]
         self.__idx += size
 
         return buff
 
-    def end(self):
+    def end(self) -> bool:
         return self.__idx == len(self.__buff)
 
 

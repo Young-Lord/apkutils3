@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from apkutils import APK
+from apkutils3 import APK
 
 
 class TestAPK(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestAPK(unittest.TestCase):
         self.apk = APK(file_path)
 
     def test_get_strings_refx(self):
-        result = self.apk.get_strings_refx()
+        result = self.apk.strings_refx
         self.assertEqual(len(result), 1477)
 
 

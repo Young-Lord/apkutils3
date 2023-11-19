@@ -1,6 +1,10 @@
-# apkutils [![PyPI version](https://badge.fury.io/py/apkutils-patch.svg)](https://badge.fury.io/py/apkutils-patch) [![GitHub license](https://img.shields.io/github/license/mikusjelly/apkutils-patch.svg)](https://github.com/mikusjelly/apkutils-patch/blob/master/LICENSE)
+# apkutils3 [![PyPI version](https://badge.fury.io/py/apkutils3.svg)](https://badge.fury.io/py/apkutils3) [![GitHub license](https://img.shields.io/github/license/Young-Lord/apkutils3.svg)](https://github.com/Young-Lord/apkutils3/blob/master/LICENSE)
 
 A library that gets infos from APK.
+
+Type hinting added for many functions.
+
+Many getter functions are replaced by properties.
 
 ## Install and Test
 
@@ -39,6 +43,6 @@ Right click an `*.apk` file. Select `APK Parser`. You will see
 
 ## Reference
 
-- apkutils\axml from [mikusjelly/axmlparser](https://github.com/mikusjelly/axmlparser) ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg)
-- apkutils\dex from [google/enjarify](https://github.com/google/enjarify)
-- Original projects: [apkutils2](https://github.com/codeskyblue/apkutils2), [apkutils](https://github.com/kin9-0rz/apkutils), license under MIT License.
+- apkutils\axml from [kin9-0rz/axmlparser](https://github.com/kin9-0rz/axmlparser) ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg)
+- apkutils\dex from [Storyyeller/enjarify](https://github.com/Storyyeller/enjarify) ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg), license under Apache License 2.0.
+- Original projects: [apkutils2](https://github.com/codeskyblue/apkutils2)  ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg), [apkutils](https://github.com/kin9-0rz/apkutils), license under MIT License.

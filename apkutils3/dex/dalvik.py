@@ -11,8 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modified by:
+#     - @Young-Lord <ly-niko@qq.com>
 
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 from . import dalvikformats, util
+
+if TYPE_CHECKING:
+    from . import dexparser
 
 
 class DalvikInstruction:
@@ -23,10 +29,10 @@ class DalvikInstruction:
         self.opcode = opcode
         self.args = args
 
-        self.implicit_casts = None
-        self.prev_result = None  # for move-result/exception
-        self.fillarrdata = None
-        self.switchdata = None
+        self.implicit_casts: Optional[Any] = None  # TODO: type this
+        self.prev_result: Optional[bytes] = None  # for move-result/exception
+        self.fillarrdata: Optional[Tuple[int, List[int]]] = None
+        self.switchdata: Optional[Dict[int, int]] = None
 
 
 _it = iter(range(999))
@@ -77,68 +83,110 @@ BinaryOpConst = next(_it)
 INVOKE_TYPES = InvokeVirtual, InvokeSuper, InvokeDirect, InvokeStatic, InvokeInterface
 
 # instructions which Dalvik considers to throw
-THROW_TYPES = INVOKE_TYPES + (ConstString, ConstClass, MonitorEnter, MonitorExit, CheckCast, InstanceOf, ArrayLen, NewArray, NewInstance,
-                              FilledNewArray, FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, BinaryOp, BinaryOpConst)
+THROW_TYPES = INVOKE_TYPES + (
+    ConstString,
+    ConstClass,
+    MonitorEnter,
+    MonitorExit,
+    CheckCast,
+    InstanceOf,
+    ArrayLen,
+    NewArray,
+    NewInstance,
+    FilledNewArray,
+    FillArrayData,
+    Throw,
+    ArrayGet,
+    ArrayPut,
+    InstanceGet,
+    InstancePut,
+    StaticGet,
+    StaticPut,
+    BinaryOp,
+    BinaryOpConst,
+)
 # last two only if it is int/long div or rem
 
 # ignore the possiblity of linkage errors (i.e. constants and instanceof can't throw)
 # in theory MonitorExit can't throw either due to the structured locking checks, but these are broken and work inconsistently
-PRUNED_THROW_TYPES = INVOKE_TYPES + (MonitorEnter, MonitorExit, CheckCast, ArrayLen, NewArray, NewInstance, FilledNewArray,
-                                     FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, BinaryOp, BinaryOpConst)
+PRUNED_THROW_TYPES = INVOKE_TYPES + (
+    MonitorEnter,
+    MonitorExit,
+    CheckCast,
+    ArrayLen,
+    NewArray,
+    NewInstance,
+    FilledNewArray,
+    FillArrayData,
+    Throw,
+    ArrayGet,
+    ArrayPut,
+    InstanceGet,
+    InstancePut,
+    StaticGet,
+    StaticPut,
+    BinaryOp,
+    BinaryOpConst,
+)
 
-OPCODES = util.keysToRanges({
-    0x00: Nop,
-    0x01: Move,
-    0x04: MoveWide,
-    0x07: Move,
-    0x0a: MoveResult,
-    0x0e: Return,
-    0x12: Const32,
-    0x16: Const64,
-    0x1a: ConstString,
-    0x1c: ConstClass,
-    0x1d: MonitorEnter,
-    0x1e: MonitorExit,
-    0x1f: CheckCast,
-    0x20: InstanceOf,
-    0x21: ArrayLen,
-    0x22: NewInstance,
-    0x23: NewArray,
-    0x24: FilledNewArray,
-    0x26: FillArrayData,
-    0x27: Throw,
-    0x28: Goto,
-    0x2b: Switch,
-    0x2d: Cmp,
-    0x32: If,
-    0x38: IfZ,
-    0x3e: Nop,  # unused
-    0x44: ArrayGet,
-    0x4b: ArrayPut,
-    0x52: InstanceGet,
-    0x59: InstancePut,
-    0x60: StaticGet,
-    0x67: StaticPut,
-    0x6e: InvokeVirtual,
-    0x6f: InvokeSuper,
-    0x70: InvokeDirect,
-    0x71: InvokeStatic,
-    0x72: InvokeInterface,
-    0x73: Nop,  # unused
-    0x74: InvokeVirtual,
-    0x75: InvokeSuper,
-    0x76: InvokeDirect,
-    0x77: InvokeStatic,
-    0x78: InvokeInterface,
-    0x79: Nop,  # unused
-    0x7b: UnaryOp,
-    0x90: BinaryOp,
-    0xd0: BinaryOpConst,
-    0xe3: Nop,  # unused
-}, 256)
+OPCODES = util.keysToRanges(
+    {
+        0x00: Nop,
+        0x01: Move,
+        0x04: MoveWide,
+        0x07: Move,
+        0x0A: MoveResult,
+        0x0E: Return,
+        0x12: Const32,
+        0x16: Const64,
+        0x1A: ConstString,
+        0x1C: ConstClass,
+        0x1D: MonitorEnter,
+        0x1E: MonitorExit,
+        0x1F: CheckCast,
+        0x20: InstanceOf,
+        0x21: ArrayLen,
+        0x22: NewInstance,
+        0x23: NewArray,
+        0x24: FilledNewArray,
+        0x26: FillArrayData,
+        0x27: Throw,
+        0x28: Goto,
+        0x2B: Switch,
+        0x2D: Cmp,
+        0x32: If,
+        0x38: IfZ,
+        0x3E: Nop,  # unused
+        0x44: ArrayGet,
+        0x4B: ArrayPut,
+        0x52: InstanceGet,
+        0x59: InstancePut,
+        0x60: StaticGet,
+        0x67: StaticPut,
+        0x6E: InvokeVirtual,
+        0x6F: InvokeSuper,
+        0x70: InvokeDirect,
+        0x71: InvokeStatic,
+        0x72: InvokeInterface,
+        0x73: Nop,  # unused
+        0x74: InvokeVirtual,
+        0x75: InvokeSuper,
+        0x76: InvokeDirect,
+        0x77: InvokeStatic,
+        0x78: InvokeInterface,
+        0x79: Nop,  # unused
+        0x7B: UnaryOp,
+        0x90: BinaryOp,
+        0xD0: BinaryOpConst,
+        0xE3: Nop,  # unused
+    },
+    256,
+)
 
 
-def parseInstruction(dex, insns_start_pos, shorts, pos):
+def parseInstruction(
+    dex: "dexparser.DexFile", insns_start_pos: int, shorts: List[int], pos: int
+) -> Tuple[int, DalvikInstruction]:
     word = shorts[pos]
     opcode = word & 0xFF
     newpos, args = dalvikformats.decode(shorts, pos, opcode)
@@ -167,12 +215,7 @@ def parseInstruction(dex, insns_start_pos, shorts, pos):
         newpos = pos + ((size * width + 1) // 2 + 4)
         # get array data
         stream = dex.stream(insns_start_pos + pos * 2 + 8)
-        func = {
-            1: stream.u8,
-            2: stream.u16,
-            4: stream.u32,
-            8: stream.u64
-        }[width]
+        func = {1: stream.u8, 2: stream.u16, 4: stream.u32, 8: stream.u64}[width]
         fillarrdata = width, [func() for _ in range(size)]
 
     # warning, this must go below the special data handling that calculates newpos
@@ -183,9 +226,14 @@ def parseInstruction(dex, insns_start_pos, shorts, pos):
     return newpos, instruction
 
 
-def parseBytecode(dex, insns_start_pos, shorts, catch_addrs):
-    ops = []
-    pos = 0
+def parseBytecode(
+    dex: "dexparser.DexFile",
+    insns_start_pos: int,
+    shorts: List[int],
+    catch_addrs: Set[int],
+) -> List[DalvikInstruction]:
+    ops: List[DalvikInstruction] = []
+    pos: int = 0
     while pos < len(shorts):
         pos, op = parseInstruction(dex, insns_start_pos, shorts, pos)
         ops.append(op)
@@ -196,12 +244,12 @@ def parseBytecode(dex, insns_start_pos, shorts, catch_addrs):
             continue
         if instr.type in INVOKE_TYPES:
             called_id = dex.method_id(instr.args[0])
-            if called_id.return_type != b'V':
+            if called_id.return_type != b"V":
                 instr2.prev_result = called_id.return_type
         elif instr.type == FilledNewArray:
             instr2.prev_result = dex.type(instr.args[0])
         elif instr2.pos in catch_addrs:
-            instr2.prev_result = b'Ljava/lang/Throwable;'
+            instr2.prev_result = b"Ljava/lang/Throwable;"
     # assert 0 not in catch_addrs
 
     # Fill in implicit cast data

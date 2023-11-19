@@ -4,7 +4,7 @@ import zipfile
 from collections import OrderedDict
 
 import xmltodict
-from apkutils.axml.arscparser import ARSCParser
+from apkutils3.axml.arscparser import ARSCParser
 
 
 class TestAPK(unittest.TestCase):

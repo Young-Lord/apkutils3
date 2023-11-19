@@ -1,9 +1,11 @@
 from struct import pack, unpack
+from typing import Dict, List, Tuple
+import warnings
 from xml.dom import minidom
 from xml.sax.saxutils import escape
 
-from apkutils.axml import public
-from apkutils.axml.chunk import BuffHandle, StringPoolChunk
+from . import public
+from .chunk import BuffHandle, StringPoolChunk
 
 # AXML FORMAT #
 # Translated from
@@ -19,7 +21,7 @@ ATTRIBUTE_IX_NAME = 1
 ATTRIBUTE_IX_VALUE_STRING = 2
 ATTRIBUTE_IX_VALUE_TYPE = 3
 ATTRIBUTE_IX_VALUE_DATA = 4
-ATTRIBUTE_LENGHT = 5
+ATTRIBUTE_LENGTH = 5
 
 CHUNK_AXML_FILE = {0x00080003, 0x00080009}
 MAGIC_NUMBER = 0x00080003
@@ -41,59 +43,48 @@ END_TAG = 3
 TEXT = 4
 
 
-class AXMLParser(object):
-
-    def __init__(self, raw_buff):
+class AXMLParser:
+    def __init__(self, raw_buff: bytes):
         self.reset()
-        self.file_size = 0
+        self.file_size: int = 0
 
-        self.valid_axml = True
-        self.buff = BuffHandle(raw_buff)
+        self.buff: BuffHandle = BuffHandle(raw_buff)
 
-        magic_number = unpack('<L', self.buff.read(4))[0]
+        magic_number: int = unpack("<L", self.buff.read(4))[0]
 
-        if magic_number == MAGIC_NUMBER:
-            self.file_size = unpack('<L', self.buff.read(4))[0]
+        if magic_number == MAGIC_NUMBER or (magic_number >= MAGIC_NUMBER_MIN and magic_number <= MAGIC_NUMBER_MAX):
+            self.valid_axml: bool = True
+            self.file_size: int = unpack("<L", self.buff.read(4))[0]
             self.sb = StringPoolChunk(self.buff)
 
-            self.m_resourceIDs = []
-            self.m_prefixuri = {}
-            self.m_uriprefix = {}
-            self.m_prefixuriL = []
+            self.m_resourceIDs:List[int]  = []
+            self.m_prefixuri: Dict[int, int] = {}
+            self.m_uriprefix: Dict[int, int] = {}
+            self.m_prefixuriL: List[Tuple[int, int]] = []
 
-            self.visited_ns = []
-        elif magic_number >= MAGIC_NUMBER_MIN and magic_number <= MAGIC_NUMBER_MAX:
-            self.file_size = unpack('<L', self.buff.read(4))[0]
-            self.sb = StringPoolChunk(self.buff)
-
-            self.m_resourceIDs = []
-            self.m_prefixuri = {}
-            self.m_uriprefix = {}
-            self.m_prefixuriL = []
-
-            self.visited_ns = []
+            self.visited_ns: List[int] = []
         else:
             self.valid_axml = False
             raise Exception("It's a invalid xml file.")
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return self.valid_axml
 
-    def reset(self):
+    def reset(self) -> None:
         self.m_event = -1
         self.m_lineNumber = -1
         self.m_name = -1
         self.m_namespaceUri = -1
-        self.m_attributes = []
+        self.m_attributes: List[int] = []
         self.m_idAttribute = -1
         self.m_classAttribute = -1
         self.m_styleAttribute = -1
 
-    def __next__(self):
+    def __next__(self) -> int:
         self.do_next()
         return self.m_event
 
-    def do_next(self):
+    def do_next(self) -> None:
         if self.m_event == END_DOCUMENT:
             return
 
@@ -118,19 +109,18 @@ class AXMLParser(object):
                 # 这里出里问题，导致死循环
                 data4 = self.buff.read(4)
                 if data4:
-                    chunkType = unpack('<L', data4)[0]
+                    chunkType: int = unpack("<L", data4)[0]
                 else:
                     pass
 
             if chunkType == CHUNK_RESOURCEIDS:
-                chunkSize = unpack('<L', self.buff.read(4))[0]
+                chunkSize = unpack("<L", self.buff.read(4))[0]
                 # FIXME
                 if chunkSize < 8 or chunkSize % 4 != 0:
                     break
 
                 for i in range(0, int(chunkSize / 4) - 2):
-                    self.m_resourceIDs.append(
-                        unpack('<L', self.buff.read(4))[0])
+                    self.m_resourceIDs.append(unpack("<L", self.buff.read(4))[0])
 
                 continue
 
@@ -144,13 +134,16 @@ class AXMLParser(object):
                 break
 
             self.buff.read(4)  # /*chunkSize*/
-            lineNumber = unpack('<L', self.buff.read(4))[0]
+            lineNumber: int = unpack("<L", self.buff.read(4))[0]
             self.buff.read(4)  # 0xFFFFFFFF
 
-            if chunkType == CHUNK_XML_START_NAMESPACE or chunkType == CHUNK_XML_END_NAMESPACE:
+            if (
+                chunkType == CHUNK_XML_START_NAMESPACE
+                or chunkType == CHUNK_XML_END_NAMESPACE
+            ):
                 if chunkType == CHUNK_XML_START_NAMESPACE:
-                    prefix = unpack('<L', self.buff.read(4))[0]
-                    uri = unpack('<L', self.buff.read(4))[0]
+                    prefix: int = unpack("<L", self.buff.read(4))[0]
+                    uri: int = unpack("<L", self.buff.read(4))[0]
 
                     self.m_prefixuri[prefix] = uri
                     self.m_uriprefix[uri] = prefix
@@ -167,39 +160,39 @@ class AXMLParser(object):
             self.m_lineNumber = lineNumber
 
             if chunkType == CHUNK_XML_START_TAG:
-                self.m_namespaceUri = unpack('<L', self.buff.read(4))[0]
-                self.m_name = unpack('<L', self.buff.read(4))[0]
+                self.m_namespaceUri = unpack("<L", self.buff.read(4))[0]
+                self.m_name = unpack("<L", self.buff.read(4))[0]
 
                 # FIXME
                 self.buff.read(4)  # flags
 
-                attributeCount = unpack('<L', self.buff.read(4))[0]
+                attributeCount = unpack("<L", self.buff.read(4))[0]
                 self.m_idAttribute = (attributeCount >> 16) - 1
                 attributeCount = attributeCount & 0xFFFF
-                self.m_classAttribute = unpack('<L', self.buff.read(4))[0]
+                self.m_classAttribute = unpack("<L", self.buff.read(4))[0]
                 self.m_styleAttribute = (self.m_classAttribute >> 16) - 1
 
                 self.m_classAttribute = (self.m_classAttribute & 0xFFFF) - 1
 
-                for i in range(0, attributeCount * ATTRIBUTE_LENGHT):
-                    self.m_attributes.append(
-                        unpack('<L', self.buff.read(4))[0])
+                for i in range(0, attributeCount * ATTRIBUTE_LENGTH):
+                    self.m_attributes.append(unpack("<L", self.buff.read(4))[0])
 
-                for i in range(ATTRIBUTE_IX_VALUE_TYPE, len(self.m_attributes),
-                               ATTRIBUTE_LENGHT):
+                for i in range(
+                    ATTRIBUTE_IX_VALUE_TYPE, len(self.m_attributes), ATTRIBUTE_LENGTH
+                ):
                     self.m_attributes[i] = self.m_attributes[i] >> 24
 
                 self.m_event = START_TAG
                 break
 
             if chunkType == CHUNK_XML_END_TAG:
-                self.m_namespaceUri = unpack('<L', self.buff.read(4))[0]
-                self.m_name = unpack('<L', self.buff.read(4))[0]
+                self.m_namespaceUri = unpack("<L", self.buff.read(4))[0]
+                self.m_name = unpack("<L", self.buff.read(4))[0]
                 self.m_event = END_TAG
                 break
 
             if chunkType == CHUNK_XML_TEXT:
-                self.m_name = unpack('<L', self.buff.read(4))[0]
+                self.m_name = unpack("<L", self.buff.read(4))[0]
 
                 # FIXME
                 self.buff.read(4)
@@ -208,36 +201,35 @@ class AXMLParser(object):
                 self.m_event = TEXT
                 break
 
-    def get_prefix_by_uri(self, uri):
+    def get_prefix_by_uri(self, uri: int) -> int:
         try:
             return self.m_uriprefix[uri]
         except KeyError:
             return -1
 
-    def get_prefix(self):
+    def get_prefix(self) -> str:
         try:
             return self.sb.getString(self.m_uriprefix[self.m_namespaceUri])
         except KeyError:
-            return ''
+            return ""
 
-    def get_name(self):
-        if self.m_name == -1 or (self.m_event != START_TAG and
-                                 self.m_event != END_TAG):
-            return ''
+    def get_name(self) -> str:
+        if self.m_name == -1 or (self.m_event != START_TAG and self.m_event != END_TAG):
+            return ""
 
         return self.sb.getString(self.m_name)
 
-    def get_text(self):
+    def get_text(self) -> str:
         if self.m_name == -1 or self.m_event != TEXT:
-            return ''
+            return ""
 
         return self.sb.getString(self.m_name)
 
-    def get_namespace_prefix(self, pos):
+    def get_namespace_prefix(self, pos: int) -> str:
         prefix = self.m_prefixuriL[pos][0]
         return self.sb.getString(prefix)
 
-    def get_namespace_uri(self, pos):
+    def get_namespace_uri(self, pos: int) -> str:
         uri = self.m_prefixuriL[pos][1]
         return self.sb.getString(uri)
 
@@ -245,13 +237,14 @@ class AXMLParser(object):
         buff = ""
         for i in self.m_uriprefix:
             if i not in self.visited_ns:
-                buff += "xmlns:%s=\"%s\"\n" % (
+                buff += 'xmlns:%s="%s"\n' % (
                     self.sb.getString(self.m_uriprefix[i]),
-                    self.sb.getString(self.m_prefixuri[self.m_uriprefix[i]]))
+                    self.sb.getString(self.m_prefixuri[self.m_uriprefix[i]]),
+                )
                 self.visited_ns.append(i)
         return buff
 
-    def get_attribute_offset(self, index):
+    def get_attribute_offset(self, index: int) -> int:
         # FIXME
         if self.m_event != START_TAG:
             print("Current event is not START_TAG.")
@@ -263,13 +256,13 @@ class AXMLParser(object):
 
         return offset
 
-    def get_attribute_count(self):
+    def get_attribute_count(self) -> int:
         if self.m_event != START_TAG:
             return -1
 
-        return len(self.m_attributes) / ATTRIBUTE_LENGHT
+        return len(self.m_attributes) // ATTRIBUTE_LENGTH
 
-    def get_attribute_prefix(self, index):
+    def get_attribute_prefix(self, index: int) -> str:
         offset = self.get_attribute_offset(index)
         uri = self.m_attributes[offset + ATTRIBUTE_IX_NAMESPACE_URI]
 
@@ -280,7 +273,7 @@ class AXMLParser(object):
 
         return self.sb.getString(prefix)
 
-    def get_attribute_name(self, index):
+    def get_attribute_name(self, index: int) -> str:
         offset = self.get_attribute_offset(index)
         name = self.m_attributes[offset + ATTRIBUTE_IX_NAME]
 
@@ -290,28 +283,32 @@ class AXMLParser(object):
         res = self.sb.getString(name)
         if not res:
             attr = self.m_resourceIDs[name]
-            if attr in public.SYSTEM_RESOURCES['attributes']['inverse']:
-                res = 'android:' + public.SYSTEM_RESOURCES['attributes']['inverse'][
-                    attr
-                ]
+            if attr in public.SYSTEM_RESOURCES["attributes"]["inverse"]:
+                res = (
+                    "android:" + public.SYSTEM_RESOURCES["attributes"]["inverse"][attr]
+                )
 
         return res
 
-    def get_attribute_valueType(self, index):
+    def get_attribute_valueType(self, index: int) -> int:
         offset = self.get_attribute_offset(index)
         return self.m_attributes[offset + ATTRIBUTE_IX_VALUE_TYPE]
 
-    def get_attribute_value_data(self, index):
+    def get_attribute_value_data(self, index: int) -> int:
         offset = self.get_attribute_offset(index)
         return self.m_attributes[offset + ATTRIBUTE_IX_VALUE_DATA]
 
-    def get_attribute_value(self, index):
+    def get_attribute_value(self, index: int) -> str:
         offset = self.get_attribute_offset(index)
         valueType = self.m_attributes[offset + ATTRIBUTE_IX_VALUE_TYPE]
         if valueType == TYPE_STRING:
             valueString = self.m_attributes[offset + ATTRIBUTE_IX_VALUE_STRING]
             return self.sb.getString(valueString)
         # WIP
+        warnings.warn(
+            "get_attribute_value for non TYPE_STRING is not implemented! Empty string returned."
+        )
+        # raise NotImplementedError()
         return ""
 
 
@@ -340,7 +337,7 @@ TYPE_NULL = 0
 TYPE_REFERENCE = 1
 TYPE_STRING = 3
 
-RADIX_MULTS = [0.00390625, 3.051758E-005, 1.192093E-007, 4.656613E-010]
+RADIX_MULTS = [0.00390625, 3.051758e-005, 1.192093e-007, 4.656613e-010]
 DIMENSION_UNITS = ["px", "dip", "sp", "pt", "in", "mm", "", ""]
 FRACTION_UNITS = ["%", "%p", "", "", "", "", "", ""]
 
@@ -348,20 +345,19 @@ COMPLEX_UNIT_MASK = 15
 
 
 class AXML:
-
-    def __init__(self, raw_buff):
-        self.parser = AXMLParser(raw_buff)
-        self.xmlns = False
+    def __init__(self, raw_buff: bytes):
+        self.parser: AXMLParser = AXMLParser(raw_buff)
+        self.xmlns: bool = False
         # 存放解析后的XML
-        self.buff = ''
+        self.buff: str = ""
 
-        self.is_valid = True
+        self.is_valid: bool = True
         if self.parser.is_valid():
             self.parse()
         else:
             self.is_valid = False
 
-    def parse(self):
+    def parse(self) -> None:
         tag = "notag"
         while True:
             _type = next(self.parser)
@@ -373,30 +369,32 @@ class AXML:
                 break
 
             if _type == START_DOCUMENT:
-                self.buff += '''<?xml version="1.0" encoding="utf-8"?>\n'''
+                self.buff += """<?xml version="1.0" encoding="utf-8"?>\n"""
             elif _type == START_TAG:
-                prefix = self.get_prefix(
-                    self.parser.get_prefix()) + self.parser.get_name()
+                prefix = (
+                    self.get_prefix(self.parser.get_prefix()) + self.parser.get_name()
+                )
 
                 if len(prefix) == 0:
                     tag = "notag"
 
-                self.buff += '<' + prefix + '\n'
+                self.buff += "<" + prefix + "\n"
                 self.buff += self.parser.get_xmlns()
 
                 # tag = prefix
-                for i in range(0, int(self.parser.get_attribute_count())):
-
-                    self.buff += "%s%s=\"%s\"\n" % (
+                for i in range(0, self.parser.get_attribute_count()):
+                    self.buff += '%s%s="%s"\n' % (
                         self.get_prefix(self.parser.get_attribute_prefix(i)),
                         self.parser.get_attribute_name(i),
-                        self._escape(self.get_attribute_value(i)))
+                        self._escape(self.get_attribute_value(i)),
+                    )
 
-                self.buff += '>\n'
+                self.buff += ">\n"
 
             elif _type == END_TAG:
-                prefix = self.get_prefix(
-                    self.parser.get_prefix()) + self.parser.get_name()
+                prefix = (
+                    self.get_prefix(self.parser.get_prefix()) + self.parser.get_name()
+                )
                 if len(prefix) == 0:
                     prefix = "notag"
                 self.buff += "</%s>\n" % (prefix)
@@ -408,7 +406,7 @@ class AXML:
                 break
 
     # pleed patch
-    def _escape(self, s):
+    def _escape(self, s: str) -> str:
         s = s.replace("&", "&amp;")
         s = s.replace('"', "&quot;")
         s = s.replace("'", "&apos;")
@@ -416,32 +414,32 @@ class AXML:
         s = s.replace(">", "&gt;")
         return escape(s)
 
-    def get_buff(self):
+    def get_buff(self) -> str:
         return self.buff
 
-    def get_xml(self):
-        return self.buff.replace('\0', '')
+    def get_xml(self) -> str:
+        return self.buff.replace("\0", "")
 
-    def _format_xml(self):
+    def _format_xml(self) -> str:
         tmp = minidom.parseString(self.get_buff()).toprettyxml()
-        A = str(tmp).replace('\t', '').replace('\n', '')
+        A = str(tmp).replace("\t", "").replace("\n", "")
         return minidom.parseString(A).toprettyxml()
 
-    def get_xml_obj(self):
+    def get_xml_obj(self) -> minidom.Document:
         return minidom.parseString(self.get_buff())
 
-    def get_prefix(self, prefix):
+    def get_prefix(self, prefix) -> str:
         """
         处理没有前缀的情况
 
         有一部分异常的节点，需要特殊处理。
         """
         if prefix is None or len(prefix) == 0:
-            return ''
+            return ""
 
-        return prefix + ':'
+        return prefix + ":"
 
-    def get_attribute_value(self, index):
+    def get_attribute_value(self, index: int):
         _type = self.parser.get_attribute_valueType(index)
         _data = self.parser.get_attribute_value_data(index)
 
@@ -466,10 +464,16 @@ class AXML:
             return "true"
 
         elif _type == TYPE_DIMENSION:
-            return "%f%s" % (self.complexToFloat(_data), DIMENSION_UNITS[_data & COMPLEX_UNIT_MASK])
+            return "%f%s" % (
+                self.complexToFloat(_data),
+                DIMENSION_UNITS[_data & COMPLEX_UNIT_MASK],
+            )
 
         elif _type == TYPE_FRACTION:
-            return "%f%s" % (self.complexToFloat(_data), FRACTION_UNITS[_data & COMPLEX_UNIT_MASK])
+            return "%f%s" % (
+                self.complexToFloat(_data),
+                FRACTION_UNITS[_data & COMPLEX_UNIT_MASK],
+            )
 
         elif _type >= TYPE_FIRST_COLOR_INT and _type <= TYPE_LAST_COLOR_INT:
             return "#%08X" % _data
@@ -482,10 +486,7 @@ class AXML:
     def complexToFloat(self, xcomplex):
         return (float)(xcomplex & 0xFFFFFF00) * RADIX_MULTS[(xcomplex >> 4) & 3]
 
-    def get_package(self, id):
+    def get_package(self, id: int):
         if id >> 24 == 1:
             return "android:"
         return ""
-
-    def get_content(self):
-        return self.content
