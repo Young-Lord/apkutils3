@@ -1,4 +1,3 @@
-# coding: utf-8
 import binascii
 from pathlib import Path
 import re
@@ -23,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -50,6 +49,10 @@ class APK:
         self._manifest: dict = {}
         self._app_name: Optional[str] = None
         self._arsc_parser: Optional[ARSCParser] = None
+        self._home_activity: Optional[str] = None
+        self._home_activities: List[str] = []
+        self._activities: List[str] = []
+        self._activity_alias: Dict[str, str] = {}
 
     @property
     def app_names(self) -> List[str]:
@@ -94,7 +97,7 @@ class APK:
     def _init_activities(self) -> None:
         manifest = self.manifest_dict
         activities = manifest["application"]["activity"]
-        activity_alias = self.xml_dict["application"].get("activity-alias", [])  # type: ignore
+        activity_alias = self.manifest_dict["application"].get("activity-alias", [])
         self._activities: List[str] = [i[NAME_ATTRIBUTE_NAME] for i in activities]
         self._activity_alias: Dict[str, str] = {
             i[NAME_ATTRIBUTE_NAME]: i["@android:targetActivity"] for i in activity_alias
