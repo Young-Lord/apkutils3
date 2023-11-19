@@ -23,7 +23,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -163,6 +163,12 @@ class APK:
         if not self._activity_alias:
             self._init_activities()
         return self._activity_alias
+
+    @property
+    def exported_activities(self) -> List[str]:
+        if not self._exported_activities:
+            self._init_activities()
+        return self._exported_activities
 
     @property
     def all_app_icons(self) -> Set[str]:
