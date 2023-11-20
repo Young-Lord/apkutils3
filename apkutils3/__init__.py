@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -64,8 +64,11 @@ class APK:
 
     def _init_libraries_for_arch(self) -> None:
         for name in self.zipfile.namelist():
-            if name.startswith("lib/"):
+            if name.startswith("lib/") and not name.endswith("/"):
                 splits = name.split("/")
+                # valid: lib/arm64-v8a/xxx.so
+                if len(splits) != 3:
+                    continue
                 arch = splits[1]
                 filename = splits[-1]
                 self._libraries_for_arch.setdefault(arch, []).append(filename)
