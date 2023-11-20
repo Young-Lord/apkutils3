@@ -1,6 +1,6 @@
 [project]
 name = "apkutils3"
-version = "2.0.2"
+version = "2.0.3"
 description = "Utils for parsing apk. Type hinting supported."
 authors = [
     { name = "LY", email = "ly-niko@qq.com" },
@@ -17,14 +17,14 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 keywords = ["apk", "dex", "axml", "arsc", "android"]
-dependencies = ["pyelftools", "cigam", "xmltodict", "cryptography"]
+dependencies = ["pyelftools", "cigam", "xmltodict"]
 
 [project.optional-dependencies]
 cert = ["cryptography"]
 
 [tool.poetry]
 name = "apkutils3"
-version = "2.0.2"
+version = "2.0.3"
 description = "Utils for parsing apk. Type hinting supported."
 authors = [
     "LY <ly-niko@qq.com>",
@@ -45,7 +45,6 @@ python = "^3.11"
 xmltodict = "^0.13.0"
 cigam = "^0.0.3"
 pyelftools = "^0.30"
-cryptography = "^41.0.5"
 
 
 [build-system]

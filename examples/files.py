@@ -10,3 +10,5 @@ apk = APK(file_path)
 files = apk.files
 for item in files:
     print(item["name"])
+
+print(apk.libraries)

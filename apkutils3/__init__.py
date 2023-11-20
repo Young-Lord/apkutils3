@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -53,6 +53,22 @@ class APK:
         self._home_activities: List[str] = []
         self._activities: List[str] = []
         self._activity_alias: Dict[str, str] = {}
+        self._libraries_for_arch: Dict[str, List[str]] = {}
+        self.zipfile: ZipFile = ZipFile(self.apk_path, mode="r")
+
+    @property
+    def libraries(self) -> Dict[str, List[str]]:
+        if not self._libraries_for_arch:
+            self._init_libraries_for_arch()
+        return self._libraries_for_arch
+
+    def _init_libraries_for_arch(self) -> None:
+        for name in self.zipfile.namelist():
+            if name.startswith("lib/"):
+                splits = name.split("/")
+                arch = splits[1]
+                filename = splits[-1]
+                self._libraries_for_arch.setdefault(arch, []).append(filename)
 
     @property
     def app_names(self) -> List[str]:
@@ -272,16 +288,15 @@ class APK:
     def _init_dex_files(self) -> None:
         self._dex_files = []
         try:
-            with ZipFile(self.apk_path, "r") as z:
-                for name in z.namelist():
-                    data = z.read(name)
-                    if (
-                        name.startswith("classes")
-                        and name.endswith(".dex")
-                        and Magic(data).get_type() == "dex"
-                    ):
-                        dex_file = DexFile(data)
-                        self._dex_files.append(dex_file)
+            for name in self.zipfile.namelist():
+                data = self.zipfile.read(name)
+                if (
+                    name.startswith("classes")
+                    and name.endswith(".dex")
+                    and Magic(data).get_type() == "dex"
+                ):
+                    dex_file = DexFile(data)
+                    self._dex_files.append(dex_file)
         except Exception as ex:
             raise ex
 
@@ -327,25 +342,24 @@ class APK:
     def _init_files_in_apk(self) -> None:
         self._files_in_apk = []
         try:
-            with ZipFile(self.apk_path, mode="r") as zf:
-                for name in zf.namelist():
-                    try:
-                        data = zf.read(name)
-                        mine = Magic(data).get_type()
-                        info = zf.getinfo(name)
-                    except Exception as ex:
-                        print(name, ex)
-                        continue
-                    crc = str(hex(info.CRC)).upper()[2:]
-                    crc = "0" * (8 - len(crc)) + crc
-                    # item["sha1"] = ""
-                    item: ChildItem = {
-                        "name": name,
-                        "type": mine,
-                        "time": "%d%02d%02d%02d%02d%02d" % info.date_time,
-                        "crc": crc,
-                    }
-                    self._files_in_apk.append(item)
+            for name in self.zipfile.namelist():
+                try:
+                    data = self.zipfile.read(name)
+                    mine = Magic(data).get_type()
+                    info = self.zipfile.getinfo(name)
+                except Exception as ex:
+                    print(name, ex)
+                    continue
+                crc = str(hex(info.CRC)).upper()[2:]
+                crc = "0" * (8 - len(crc)) + crc
+                # item["sha1"] = ""
+                item: ChildItem = {
+                    "name": name,
+                    "type": mine,
+                    "time": "%d%02d%02d%02d%02d%02d" % info.date_time,
+                    "crc": crc,
+                }
+                self._files_in_apk.append(item)
         except Exception as e:
             raise e
 
@@ -364,15 +378,14 @@ class APK:
     def _init_org_manifest(self) -> None:
         ANDROID_MANIFEST = "AndroidManifest.xml"
         try:
-            with ZipFile(self.apk_path, mode="r") as zf:
-                if ANDROID_MANIFEST in zf.namelist():
-                    data = zf.read(ANDROID_MANIFEST)
-                    try:
-                        axml = AXML(data)
-                        if axml.is_valid:
-                            self._orig_manifest = axml.get_xml()
-                    except Exception as e:
-                        raise e
+            if ANDROID_MANIFEST in self.zipfile.namelist():
+                data = self.zipfile.read(ANDROID_MANIFEST)
+                try:
+                    axml = AXML(data)
+                    if axml.is_valid:
+                        self._orig_manifest = axml.get_xml()
+                except Exception as e:
+                    raise e
         except Exception as e:
             raise e
 
@@ -406,10 +419,9 @@ class APK:
     def _init_arsc(self) -> None:
         ARSC_NAME = "resources.arsc"
         try:
-            with ZipFile(self.apk_path, mode="r") as zf:
-                if ARSC_NAME in zf.namelist():
-                    data = zf.read(ARSC_NAME)
-                    self._arsc_parser = ARSCParser(data)
+            if ARSC_NAME in self.zipfile.namelist():
+                data = self.zipfile.read(ARSC_NAME)
+                self._arsc_parser = ARSCParser(data)
         except Exception as e:
             raise e
 
@@ -428,16 +440,15 @@ class APK:
 
     def _init_certs(self) -> None:
         try:
-            with ZipFile(self.apk_path, mode="r") as zf:
-                for name in zf.namelist():
-                    if "META-INF" in name:
-                        data = zf.read(name)
-                        mine = Magic(data).get_type()
-                        if mine != "txt":
-                            from cert import Certificate
+            for name in self.zipfile.namelist():
+                if "META-INF" in name:
+                    data = self.zipfile.read(name)
+                    mine = Magic(data).get_type()
+                    if mine != "txt":
+                        from cert import Certificate
 
-                            cert = Certificate(data)
-                            self._certs = cert.get()
+                        cert = Certificate(data)
+                        self._certs = cert.get()
         except Exception as e:
             raise e
 
