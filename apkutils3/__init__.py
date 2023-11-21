@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.6"
+__version__ = "2.0.7"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -55,6 +55,7 @@ class APK:
         self._activity_alias: Dict[str, str] = {}
         self._libraries_for_arch: Dict[str, List[str]] = {}
         self._library_filenames: Set[str] = set()
+        self._dex_classes_for_libchecker: Set[str] = set()
         self.zipfile: ZipFile = ZipFile(self.apk_path, mode="r")
 
     @property
@@ -331,7 +332,9 @@ class APK:
     @property
     def dex_classes_for_libchecker(self) -> Set[str]:
         # https://github.com/LibChecker/LibChecker/blob/b1d9bb82d8d8b5645e48a53ec7a035aa30285f52/app/src/main/kotlin/com/absinthe/libchecker/utils/PackageUtils.kt#L940
-        # Apache 2.0
+        # Apache 2.0 License
+        if self._dex_classes_for_libchecker:
+            return self._dex_classes_for_libchecker
         response: Set[str] = set()
         for class_name in self.dex_classes:
             class_name = class_name.replace("/", ".")
@@ -346,23 +349,24 @@ class APK:
             if class_name:
                 response.add(class_name)
         # Merge path deep level 3 classes
-        for class_name in response.copy():
+        response_copy = response.copy()
+        for class_name in response_copy:
             if len(class_name.split(".")) == 3:
-                for class_name_deeper in response.copy():
-                    if class_name_deeper.startswith(class_name):
+                for class_name_deeper in response_copy:
+                    if class_name_deeper.startswith(class_name + "."):
                         response.remove(class_name_deeper)
-                response.add(class_name)
         # Merge path deep level 4 classes
         for class_name in response.copy():
             if len(class_name.split(".")) == 4:
                 path_level_3_item = ".".join(class_name.split(".")[:3])
                 if path_level_3_item in self.DEEP_LEVEL_3_SET:
                     continue
-                filter_ = [i for i in response if i.startswith(path_level_3_item)]
+                filter_ = [i for i in response if i.startswith(path_level_3_item + ".")]
                 if filter_:
                     for item in filter_:
                         response.remove(item)
                     response.add(path_level_3_item)
+        self._dex_classes_for_libchecker = response
         return response
 
     @property
