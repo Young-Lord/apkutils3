@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.4"
+__version__ = "2.0.5"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -54,6 +54,7 @@ class APK:
         self._activities: List[str] = []
         self._activity_alias: Dict[str, str] = {}
         self._libraries_for_arch: Dict[str, List[str]] = {}
+        self._library_filenames: Set[str] = set()
         self.zipfile: ZipFile = ZipFile(self.apk_path, mode="r")
 
     @property
@@ -61,6 +62,12 @@ class APK:
         if not self._libraries_for_arch:
             self._init_libraries_for_arch()
         return self._libraries_for_arch
+
+    @property
+    def library_filenames(self) -> Set[str]:
+        if not self._library_filenames:
+            self._init_libraries_for_arch()
+        return self._library_filenames
 
     def _init_libraries_for_arch(self) -> None:
         for name in self.zipfile.namelist():
@@ -72,6 +79,7 @@ class APK:
                 arch = splits[1]
                 filename = splits[-1]
                 self._libraries_for_arch.setdefault(arch, []).append(filename)
+                self._library_filenames.add(filename)
 
     @property
     def app_names(self) -> List[str]:
