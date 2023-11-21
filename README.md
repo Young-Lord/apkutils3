@@ -39,10 +39,11 @@ $ python -m apkutils.gui
 
 Right click an `*.apk` file. Select `APK Parser`. You will see
 
-![Img](imgs/apk-parser.png)
+![apk parser example image](imgs/apk-parser.png)
 
 ## Reference
 
 - apkutils\axml from [kin9-0rz/axmlparser](https://github.com/kin9-0rz/axmlparser) ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg)
 - apkutils\dex from [Storyyeller/enjarify](https://github.com/Storyyeller/enjarify) ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg), license under Apache License 2.0.
 - Original projects: [apkutils2](https://github.com/codeskyblue/apkutils2)  ![Project unmaintained](https://img.shields.io/badge/project-unmaintained-red.svg), [apkutils](https://github.com/kin9-0rz/apkutils), license under MIT License.
+- [LibChecker](https://github.com/LibChecker/LibChecker) used for classes list generation, license under Apache License 2.0.

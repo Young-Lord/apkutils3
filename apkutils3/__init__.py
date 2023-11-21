@@ -1,7 +1,7 @@
 import binascii
 from pathlib import Path
 import re
-from typing import Dict, List, Optional, Set, Union, TYPE_CHECKING
+from typing import Dict, Final, List, Optional, Set, Union, TYPE_CHECKING
 import warnings
 import xml
 import xmltodict
@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.5"
+__version__ = "2.0.6"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -310,6 +310,60 @@ class APK:
                     self._dex_files.append(dex_file)
         except Exception as ex:
             raise ex
+
+    @property
+    def dex_classes(self) -> Set[str]:
+        response: Set[str] = set()
+        for dex_file in self.dex_files:
+            for dex_class in dex_file.classes:
+                response.add(dex_class.name.decode())
+        return response
+
+    DEEP_LEVEL_3_SET: Final[Set[str]] = {
+        "com.google.android",
+        "com.samsung.android",
+        "com.alibaba.android",
+        "cn.com.chinatelecom",
+        "com.github.chrisbanes",
+        "com.google.thirdparty",
+    }
+
+    @property
+    def dex_classes_for_libchecker(self) -> Set[str]:
+        # https://github.com/LibChecker/LibChecker/blob/b1d9bb82d8d8b5645e48a53ec7a035aa30285f52/app/src/main/kotlin/com/absinthe/libchecker/utils/PackageUtils.kt#L940
+        # Apache 2.0
+        response: Set[str] = set()
+        for class_name in self.dex_classes:
+            class_name = class_name.replace("/", ".")
+            if "." not in class_name:
+                continue
+            if class_name.startswith("kotlin"):
+                continue
+            if class_name.startswith("androidx"):
+                class_name = class_name[class_name.find(".") + 1 :]
+            else:
+                class_name = ".".join(class_name.split(".")[:4])
+            if class_name:
+                response.add(class_name)
+        # Merge path deep level 3 classes
+        for class_name in response.copy():
+            if len(class_name.split(".")) == 3:
+                for class_name_deeper in response.copy():
+                    if class_name_deeper.startswith(class_name):
+                        response.remove(class_name_deeper)
+                response.add(class_name)
+        # Merge path deep level 4 classes
+        for class_name in response.copy():
+            if len(class_name.split(".")) == 4:
+                path_level_3_item = ".".join(class_name.split(".")[:3])
+                if path_level_3_item in self.DEEP_LEVEL_3_SET:
+                    continue
+                filter_ = [i for i in response if i.startswith(path_level_3_item)]
+                if filter_:
+                    for item in filter_:
+                        response.remove(item)
+                    response.add(path_level_3_item)
+        return response
 
     @property
     def strings(self) -> List[str]:
