@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.8"
+__version__ = "2.0.9"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -170,6 +170,9 @@ class APK:
                     ):
                         is_launcher = True
                         break
+                if act.get("@android:enabled", "true") == "false":
+                    # e.g. Spotify
+                    continue
                 if is_main and is_launcher:
                     home_activities.append(act[NAME_ATTRIBUTE_NAME])
         try:
