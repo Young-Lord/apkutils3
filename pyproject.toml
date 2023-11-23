@@ -46,6 +46,8 @@ xmltodict = "^0.13.0"
 cigam = "^0.0.3"
 pyelftools = "^0.30"
 
+[tool.poetry.extras]
+cert = ["cryptography"]
 
 [build-system]
 requires = ["poetry-core"]
