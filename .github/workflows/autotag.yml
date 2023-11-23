@@ -9,4 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: tamasfe/auto-tag@v5
+        with:
+          token: ${{ secrets.PAT }}
+      - name: Auto Tag
+        run: |
+          version=`grep -m 1 version pyproject.toml | tr -s ' ' | tr -d '"' | tr -d "'" | cut -d' ' -f3`
+          git tag v$version || true
+          git push --tags
