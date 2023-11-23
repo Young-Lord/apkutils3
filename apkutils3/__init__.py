@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.7"
+__version__ = "2.0.8"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
@@ -57,6 +57,7 @@ class APK:
         self._library_filenames: Set[str] = set()
         self._dex_classes_for_libchecker: Set[str] = set()
         self.zipfile: ZipFile = ZipFile(self.apk_path, mode="r")
+        self.apk_namelist: List[str] = self.zipfile.namelist()
 
     @property
     def libraries(self) -> Dict[str, List[str]]:
@@ -71,7 +72,7 @@ class APK:
         return self._library_filenames
 
     def _init_libraries_for_arch(self) -> None:
-        for name in self.zipfile.namelist():
+        for name in self.apk_namelist:
             if name.startswith("lib/") and not name.endswith("/"):
                 splits = name.split("/")
                 # valid: lib/arm64-v8a/xxx.so
@@ -81,6 +82,21 @@ class APK:
                 filename = splits[-1]
                 self._libraries_for_arch.setdefault(arch, []).append(filename)
                 self._library_filenames.add(filename)
+
+    @property
+    def is_jetpack_compose(self) -> bool:
+        # https://github.com/LibChecker/LibChecker/blob/7b0cf85b5d959b763131e20fe49a721276b7ccf4/app/src/main/kotlin/com/absinthe/libchecker/utils/extensions/PackageInfoExtensions.kt#L375
+        JETPACK_COMPOSE_FILES = (
+            "META-INF/androidx.compose.runtime_runtime.version",
+            "META-INF/androidx.compose.ui_ui.version",
+            "META-INF/androidx.compose.ui_ui-tooling-preview.version",
+            "META-INF/androidx.compose.foundation_foundation.version",
+            "META-INF/androidx.compose.animation_animation.version",
+        )
+        for jetpack_file in self.apk_namelist:
+            if jetpack_file in JETPACK_COMPOSE_FILES:
+                return True
+        return False
 
     @property
     def app_names(self) -> List[str]:
@@ -300,7 +316,7 @@ class APK:
     def _init_dex_files(self) -> None:
         self._dex_files = []
         try:
-            for name in self.zipfile.namelist():
+            for name in self.apk_namelist:
                 data = self.zipfile.read(name)
                 if (
                     name.startswith("classes")
@@ -411,7 +427,7 @@ class APK:
     def _init_files_in_apk(self) -> None:
         self._files_in_apk = []
         try:
-            for name in self.zipfile.namelist():
+            for name in self.apk_namelist:
                 try:
                     data = self.zipfile.read(name)
                     mine = Magic(data).get_type()
@@ -447,7 +463,7 @@ class APK:
     def _init_org_manifest(self) -> None:
         ANDROID_MANIFEST = "AndroidManifest.xml"
         try:
-            if ANDROID_MANIFEST in self.zipfile.namelist():
+            if ANDROID_MANIFEST in self.apk_namelist:
                 data = self.zipfile.read(ANDROID_MANIFEST)
                 try:
                     axml = AXML(data)
@@ -488,7 +504,7 @@ class APK:
     def _init_arsc(self) -> None:
         ARSC_NAME = "resources.arsc"
         try:
-            if ARSC_NAME in self.zipfile.namelist():
+            if ARSC_NAME in self.apk_namelist:
                 data = self.zipfile.read(ARSC_NAME)
                 self._arsc_parser = ARSCParser(data)
         except Exception as e:
@@ -509,7 +525,7 @@ class APK:
 
     def _init_certs(self) -> None:
         try:
-            for name in self.zipfile.namelist():
+            for name in self.apk_namelist:
                 if "META-INF" in name:
                     data = self.zipfile.read(name)
                     mine = Magic(data).get_type()
