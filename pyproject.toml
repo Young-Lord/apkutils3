@@ -1,6 +1,6 @@
 [project]
 name = "apkutils3"
-version = "2.0.10"
+version = "2.0.11"
 description = "Utils for parsing apk. Type hinting supported."
 authors = [
     { name = "LY", email = "ly-niko@qq.com" },
@@ -24,7 +24,7 @@ cert = ["cryptography"]
 
 [tool.poetry]
 name = "apkutils3"
-version = "2.0.10"
+version = "2.0.11"
 description = "Utils for parsing apk. Type hinting supported."
 authors = [
     "LY <ly-niko@qq.com>",

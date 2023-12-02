@@ -139,8 +139,8 @@ class StringPoolChunk:
     def decode_bytes(self, data: bytes, encoding: str, str_len: int) -> str:
         # https://github.com/kin9-0rz/apkutils/blob/0ad84d385b73d1cc4d329e690417242c7392fda5/apkutils/axml/__init__.py#L550
         string = data.decode(encoding, "ignore")
-        if len(string) != str_len:
-            print(string)
+        # if len(string) != str_len:
+        #     print(string)
         #     raise Exception("invalid decoded string length")
         return string
 
