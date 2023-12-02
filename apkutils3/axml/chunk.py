@@ -81,7 +81,7 @@ class StringPoolChunk:
         不断地寻找 CHUNK_STRINGPOOL_TYPE，目前暂时没有遇到这种样本。
         """
 
-        def readNext(buff: "BuffHandle", first_run: bool=True) -> int:
+        def readNext(buff: "BuffHandle", first_run: bool = True) -> int:
             datas = unpack("<i", buff.read(4))
             header: int = datas[0]
 
@@ -137,9 +137,11 @@ class StringPoolChunk:
         return self.decode_bytes(data, "utf-16", str_len)
 
     def decode_bytes(self, data: bytes, encoding: str, str_len: int) -> str:
-        string = data.decode(encoding, "replace")
+        # https://github.com/kin9-0rz/apkutils/blob/0ad84d385b73d1cc4d329e690417242c7392fda5/apkutils/axml/__init__.py#L550
+        string = data.decode(encoding, "ignore")
         if len(string) != str_len:
-            raise Exception("invalid decoded string length")
+            print(string)
+        #     raise Exception("invalid decoded string length")
         return string
 
     def decodeLength(self, offset: int, sizeof_char: int):
