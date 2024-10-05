@@ -1,30 +1,6 @@
-[project]
-name = "apkutils3"
-version = "2.0.11"
-description = "Utils for parsing apk. Type hinting supported."
-authors = [
-    { name = "LY", email = "ly-niko@qq.com" },
-    { name = "codeskyblue", email = "codeskyblue@gmail.com" },
-    { name = "mikusjelly", email = "mikusjelly@gmail.com" },
-]
-license = { file = "LICENSE" }
-readme = "README.md"
-requires-python = ">=3.11"
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Topic :: Utilities",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3 :: Only",
-]
-keywords = ["apk", "dex", "axml", "arsc", "android"]
-dependencies = ["pyelftools", "cigam", "xmltodict"]
-
-[project.optional-dependencies]
-cert = ["cryptography"]
-
 [tool.poetry]
 name = "apkutils3"
-version = "2.0.11"
+version = "2.0.12"
 description = "Utils for parsing apk. Type hinting supported."
 authors = [
     "LY <ly-niko@qq.com>",
@@ -39,6 +15,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3 :: Only",
 ]
+keywords = ["apk", "dex", "axml", "arsc", "android"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -55,5 +32,4 @@ build-backend = "poetry.core.masonry.api"
 
 [project.urls]
 Homepage = "https://github.com/Young-Lord/apkutils3"
-Repository = "https://github.com/Young-Lord/apkutils3"
 "Bug Tracker" = "https://github.com/Young-Lord/apkutils3/issues"
