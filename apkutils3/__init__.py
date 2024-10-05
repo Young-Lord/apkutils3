@@ -22,7 +22,7 @@ from .dex.dexparser import DexFile
 from .manifest import Manifest
 from cigam import Magic
 
-__version__ = "2.0.13"
+__version__ = "2.0.14"
 
 
 def make_sth_a_list_if_it_is_not_a_list(sth) -> list:
